@@ -1,6 +1,9 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+// The list of routes that are protected from anonymous
+const protectedRoutes = ["temp"];
+
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
@@ -41,17 +44,49 @@ export async function updateSession(request: NextRequest) {
   const { data } = await supabase.auth.getClaims()
 
   const user = data?.claims
+  const anonUser = data?.claims.is_anonymous;
+  // const protectedRoute = 
 
-  if (
-    !user &&
-    !request.nextUrl.pathname.startsWith('/login') &&
-    !request.nextUrl.pathname.startsWith('/auth')
-  ) {
-    // no user, potentially respond by redirecting the user to the login page
-    const url = request.nextUrl.clone()
-    url.pathname = '/login'
-    return NextResponse.redirect(url)
+  /*
+    # The main idea behind this is to
+    - Check if there is an access token for the client via getClaims()
+    * If there is none then makes the client sign in anonymously
+    - Protect routes (watchlist, etc...) if isAnonymous and redirect to login
+  */
+
+  if(!user &&
+    protectedRoutes.some((prefix) => request.nextUrl.pathname.startsWith(prefix))
+  ){
+   return NextResponse.redirect("/login") // Send them back to the lobby
+    // WRONG
+    // return NextResponse.redirect(url); // I assume that if I do it this way it also sends the set-cookie for the client instead of not telling them with just redirect
   }
+  // If not a user and not signed in anonymously
+    // modify response to get them to set a cookie as anon
+  if(!user){
+    // Sign in anonymously
+    const { data, error } = await supabase.auth.signInAnonymously();
+    // I don't have to manually manage the session. Thats what the callback setAll does when creating the server client and sign-in anon
+    // supabaseResponse = NextResponse.next({
+    //   request,
+    // })
+    // if(error){
+    //   // tk for rn leave it be
+    // }
+    // supabaseResponse.cookies.set = data.session?.access_token
+
+  }
+
+  if(anonUser &&
+    protectedRoutes.some((prefix) => request.nextUrl.pathname.startsWith(prefix))
+  ){
+    return NextResponse.redirect("/login")
+  }
+
+  
+  // This prevents !users from accessing pages except for those
+  // In my case it would probably be faster to say which ones they can't access when not logged in since there are less of those. But objectively the same thing
+
 
   // IMPORTANT: You *must* return the supabaseResponse object as it is. If you're
   // creating a new response object with NextResponse.next() make sure to:

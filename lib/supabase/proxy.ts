@@ -60,6 +60,19 @@ export async function updateSession(request: NextRequest) {
    return NextResponse.redirect("/login") // Send them back to the lobby
     // WRONG
     // return NextResponse.redirect(url); // I assume that if I do it this way it also sends the set-cookie for the client instead of not telling them with just redirect
+
+    // -- well I pretty much knew this. I just abandoned the supabase response that set cookies. Why would making a new supabase attach those cookies lol, -> anyways fix this later.
+//     B. Your redirect can discard refreshed session cookies
+// You already suspected this in your comments.
+
+// You wrote:
+// return NextResponse.redirect("/login");
+
+
+// There are two problems here.
+
+// First, NextResponse.redirect() expects an absolute URL. Use:
+// NextResponse.redirect(new URL("/login", request.url));
   }
   // If not a user and not signed in anonymously
     // modify response to get them to set a cookie as anon
